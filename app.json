@@ -20,6 +20,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3ab2e0e9-9b05-4f14-b542-c11e8dd684a5"
+      }
+    },
+    "owner": "vsb.tech"
   }
 }
