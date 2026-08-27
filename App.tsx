@@ -3,12 +3,14 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
 
+import AddCareRecipientScreen from './screens/AddCareRecipientScreen';
 import CaregiverProfileScreen from './screens/CaregiverProfileScreen';
 import SignInScreen from './screens/SignInScreen';
 import { supabase } from './services/supabase';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>();
+  const [hasProfile, setHasProfile] = useState<boolean>();
 
   useEffect(() => {
     let isMounted = true;
@@ -31,16 +33,58 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!session) {
+      setHasProfile(session === null ? false : undefined);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setHasProfile(undefined);
+
+    supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', session.user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!isMounted) {
+          return;
+        }
+
+        if (error) {
+          console.error('Unable to check caregiver profile:', error.message);
+          setHasProfile(false);
+          return;
+        }
+
+        setHasProfile(Boolean(data));
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session]);
+
   let content;
 
-  if (session === undefined) {
+  if (session === undefined || (session && hasProfile === undefined)) {
     content = (
       <View style={styles.loadingContainer}>
         <ActivityIndicator color="#147d6f" size="large" />
       </View>
     );
+  } else if (!session) {
+    content = <SignInScreen />;
+  } else if (!hasProfile) {
+    content = (
+      <CaregiverProfileScreen onProfileSaved={() => setHasProfile(true)} />
+    );
   } else {
-    content = session ? <CaregiverProfileScreen /> : <SignInScreen />;
+    content = <AddCareRecipientScreen />;
   }
 
   return (

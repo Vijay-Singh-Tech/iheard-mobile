@@ -26,7 +26,13 @@ function getDeviceTimezone() {
   }
 }
 
-export default function CaregiverProfileScreen() {
+type CaregiverProfileScreenProps = {
+  onProfileSaved?: () => void;
+};
+
+export default function CaregiverProfileScreen({
+  onProfileSaved,
+}: CaregiverProfileScreenProps) {
   const [displayName, setDisplayName] = useState('');
   const [timezone, setTimezone] = useState(getDeviceTimezone);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -80,6 +86,7 @@ export default function CaregiverProfileScreen() {
       setDisplayName(normalizedDisplayName);
       setTimezone(normalizedTimezone);
       setFeedback({ type: 'success', message: 'Profile saved successfully.' });
+      onProfileSaved?.();
     } catch {
       setFeedback({
         type: 'error',
