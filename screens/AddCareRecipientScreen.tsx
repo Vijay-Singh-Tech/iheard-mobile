@@ -27,6 +27,14 @@ export default function AddCareRecipientScreen() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  async function handleSignOut() {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      setFeedback({ type: 'error', message: error.message });
+    }
+  }
+
   async function handleAddCareRecipient() {
     const normalizedPreferredName = preferredName.trim();
     const normalizedRelationship = relationship.trim();
@@ -213,6 +221,14 @@ export default function AddCareRecipientScreen() {
                 <Text style={styles.buttonText}>Add care recipient</Text>
               )}
             </Pressable>
+
+            <Pressable
+              disabled={isLoading}
+              onPress={handleSignOut}
+              style={styles.signOutButton}
+            >
+              <Text style={styles.signOutButtonText}>Sign out</Text>
+            </Pressable>
           </View>
         </View>
       </ScrollView>
@@ -319,5 +335,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  signOutButton: {
+    alignItems: 'center',
+    marginTop: 16,
+    paddingVertical: 10,
+  },
+  signOutButtonText: {
+    color: '#147d6f',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
