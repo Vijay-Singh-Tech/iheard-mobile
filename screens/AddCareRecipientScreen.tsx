@@ -12,13 +12,20 @@ import {
 } from 'react-native';
 
 import { supabase } from '../services/supabase';
+import type { CareRecipient } from '../App';
 
 type Feedback = {
   type: 'error' | 'success';
   message: string;
 };
 
-export default function AddCareRecipientScreen() {
+type AddCareRecipientScreenProps = {
+  onRecipientAdded?: (recipient: CareRecipient) => void;
+};
+
+export default function AddCareRecipientScreen({
+  onRecipientAdded,
+}: AddCareRecipientScreenProps) {
   const [preferredName, setPreferredName] = useState('');
   const [relationship, setRelationship] = useState('');
   const [primaryCondition, setPrimaryCondition] = useState('');
@@ -86,7 +93,7 @@ export default function AddCareRecipientScreen() {
         return;
       }
 
-      const { error: recipientError } = await supabase
+      const { data: recipient, error: recipientError } = await supabase
         .from('care_recipients')
         .insert({
           caregiver_id: user.id,
@@ -95,10 +102,17 @@ export default function AddCareRecipientScreen() {
           primary_condition: normalizedPrimaryCondition,
           other_conditions: conditions,
           care_notes: normalizedCareNotes || null,
-        });
+        })
+        .select('id, preferred_name, relationship, primary_condition')
+        .single();
 
-      if (recipientError) {
-        setFeedback({ type: 'error', message: recipientError.message });
+      if (recipientError || !recipient) {
+        setFeedback({
+          type: 'error',
+          message:
+            recipientError?.message ??
+            'The care recipient was saved, but could not be loaded.',
+        });
         return;
       }
 
@@ -111,6 +125,7 @@ export default function AddCareRecipientScreen() {
         type: 'success',
         message: 'Care recipient added successfully.',
       });
+      onRecipientAdded?.(recipient);
     } catch {
       setFeedback({
         type: 'error',
