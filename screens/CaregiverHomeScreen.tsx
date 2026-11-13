@@ -5,11 +5,13 @@ import { supabase } from '../services/supabase';
 
 type CaregiverHomeScreenProps = {
   careRecipient: CareRecipient;
+  onStartVoiceInput: () => void;
   onStartWellbeingCheck: () => void;
 };
 
 export default function CaregiverHomeScreen({
   careRecipient,
+  onStartVoiceInput,
   onStartWellbeingCheck,
 }: CaregiverHomeScreenProps) {
   return (
@@ -32,6 +34,18 @@ export default function CaregiverHomeScreen({
           <Text style={styles.detail}>{careRecipient.relationship}</Text>
           <Text style={styles.detail}>{careRecipient.primary_condition}</Text>
           <Text style={styles.cardAction}>Start wellbeing check</Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityHint="Opens the voice recording screen"
+          accessibilityRole="button"
+          onPress={onStartVoiceInput}
+          style={({ pressed }) => [
+            styles.voiceButton,
+            pressed && styles.buttonPressed,
+          ]}
+        >
+          <Text style={styles.voiceButtonText}>Voice Check-in</Text>
         </Pressable>
 
         <Pressable
@@ -100,6 +114,23 @@ const styles = StyleSheet.create({
     color: '#147d6f',
     fontSize: 15,
     fontWeight: '700',
+  },
+  voiceButton: {
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+    borderRadius: 10,
+    backgroundColor: '#147d6f',
+    paddingHorizontal: 18,
+  },
+  voiceButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  buttonPressed: {
+    opacity: 0.75,
   },
   signOutButton: {
     alignItems: 'center',

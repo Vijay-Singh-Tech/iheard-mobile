@@ -7,6 +7,7 @@ import AddCareRecipientScreen from './screens/AddCareRecipientScreen';
 import CaregiverHomeScreen from './screens/CaregiverHomeScreen';
 import CaregiverProfileScreen from './screens/CaregiverProfileScreen';
 import SignInScreen from './screens/SignInScreen';
+import VoiceInputScreen from './screens/VoiceInputScreen';
 import WellbeingCheckScreen from './screens/WellbeingCheckScreen';
 import { supabase } from './services/supabase';
 
@@ -24,9 +25,9 @@ export default function App() {
     CareRecipient | null | undefined
   >();
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeScreen, setActiveScreen] = useState<'home' | 'wellbeing'>(
-    'home'
-  );
+  const [activeScreen, setActiveScreen] = useState<
+    'home' | 'voice' | 'wellbeing'
+  >('home');
 
   useEffect(() => {
     let isMounted = true;
@@ -165,10 +166,15 @@ export default function App() {
         onReturnHome={() => setActiveScreen('home')}
       />
     );
+  } else if (careRecipient && activeScreen === 'voice') {
+    content = (
+      <VoiceInputScreen onReturnHome={() => setActiveScreen('home')} />
+    );
   } else if (careRecipient) {
     content = (
       <CaregiverHomeScreen
         careRecipient={careRecipient}
+        onStartVoiceInput={() => setActiveScreen('voice')}
         onStartWellbeingCheck={() => setActiveScreen('wellbeing')}
       />
     );
