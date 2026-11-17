@@ -16,12 +16,19 @@ import {
   useAudioRecorder,
   useAudioRecorderState,
 } from 'expo-audio';
+import { File } from 'expo-file-system';
+
+import { supabase } from '../services/supabase';
 
 type VoiceInputScreenProps = {
   onReturnHome: () => void;
 };
 
 type PermissionState = 'checking' | 'granted' | 'denied';
+
+type TranscriptionResponse = {
+  text: string;
+};
 
 function formatDuration(durationMillis: number) {
   const totalSeconds = Math.max(0, Math.floor(durationMillis / 1000));
@@ -50,6 +57,8 @@ export default function VoiceInputScreen({
     useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   playerRef.current = player;
   recorderRef.current = recorder;
@@ -130,6 +139,7 @@ export default function VoiceInputScreen({
       recorder.record();
       isRecordingRef.current = true;
       setIsRecording(true);
+      setTranscript(null);
     } catch {
       isRecordingRef.current = false;
       setIsRecording(false);
@@ -195,6 +205,50 @@ export default function VoiceInputScreen({
       player.play();
     } catch {
       setFeedback('Unable to replay the recording. Please try again.');
+    }
+  }
+
+  async function handleTranscribe() {
+    if (!recordingUri) {
+      setFeedback('Record a voice check-in before trying to transcribe it.');
+      return;
+    }
+
+    setFeedback(null);
+    setTranscript(null);
+    setIsTranscribing(true);
+
+    try {
+      const audioFile = new File(recordingUri);
+
+      if (!audioFile.exists || audioFile.size === 0) {
+        throw new Error('Recording is unavailable');
+      }
+
+      const formData = new FormData();
+      formData.append('file', audioFile, 'voice-check-in.m4a');
+
+      const { data, error } =
+        await supabase.functions.invoke<TranscriptionResponse>(
+          'transcribe-audio',
+          { body: formData }
+        );
+
+      if (error || typeof data?.text !== 'string' || !data.text.trim()) {
+        throw new Error('Transcription failed');
+      }
+
+      if (isMountedRef.current) {
+        setTranscript(data.text.trim());
+      }
+    } catch {
+      if (isMountedRef.current) {
+        setFeedback('Unable to transcribe this recording. Please try again.');
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsTranscribing(false);
+      }
     }
   }
 
@@ -278,13 +332,13 @@ export default function VoiceInputScreen({
             </View>
 
             <Pressable
-              disabled={isBusy}
+              disabled={isBusy || isTranscribing}
               onPress={
                 isRecording ? handleStopRecording : handleStartRecording
               }
               style={({ pressed }) => [
                 styles.primaryButton,
-                (pressed || isBusy) && styles.buttonMuted,
+                (pressed || isBusy || isTranscribing) && styles.buttonMuted,
                 isRecording && styles.stopButton,
               ]}
             >
@@ -299,11 +353,11 @@ export default function VoiceInputScreen({
 
             {recordingUri && !isRecording ? (
               <Pressable
-                disabled={isBusy}
+                disabled={isBusy || isTranscribing}
                 onPress={handleReplay}
                 style={({ pressed }) => [
                   styles.secondaryButton,
-                  pressed && styles.buttonMuted,
+                  (pressed || isTranscribing) && styles.buttonMuted,
                 ]}
               >
                 <Text style={styles.secondaryButtonText}>
@@ -313,7 +367,34 @@ export default function VoiceInputScreen({
                 </Text>
               </Pressable>
             ) : null}
+
+            {recordingUri && !isRecording ? (
+              <Pressable
+                disabled={isBusy || isTranscribing}
+                onPress={handleTranscribe}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  (pressed || isTranscribing) && styles.buttonMuted,
+                ]}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {isTranscribing
+                    ? 'Transcribing…'
+                    : 'Transcribe recording'}
+                </Text>
+              </Pressable>
+            ) : null}
           </>
+        ) : null}
+
+        {transcript ? (
+          <View
+            accessibilityLiveRegion="polite"
+            style={styles.transcriptCard}
+          >
+            <Text style={styles.transcriptTitle}>Transcript</Text>
+            <Text style={styles.transcriptText}>{transcript}</Text>
+          </View>
         ) : null}
 
         {feedback && permissionState === 'granted' ? (
@@ -323,9 +404,12 @@ export default function VoiceInputScreen({
         ) : null}
 
         <Pressable
-          disabled={isBusy}
+          disabled={isBusy || isTranscribing}
           onPress={handleReturnHome}
-          style={styles.homeButton}
+          style={[
+            styles.homeButton,
+            isTranscribing && styles.buttonMuted,
+          ]}
         >
           <Text style={styles.homeButtonText}>Return to caregiver home</Text>
         </Pressable>
@@ -429,6 +513,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  transcriptCard: {
+    marginTop: 20,
+    borderRadius: 12,
+    backgroundColor: '#eef5f3',
+    padding: 18,
+  },
+  transcriptTitle: {
+    color: '#122522',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  transcriptText: {
+    marginTop: 8,
+    color: '#364b47',
+    fontSize: 16,
+    lineHeight: 23,
   },
   homeButton: {
     alignItems: 'center',
