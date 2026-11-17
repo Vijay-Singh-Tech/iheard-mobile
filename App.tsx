@@ -168,7 +168,10 @@ export default function App() {
     );
   } else if (careRecipient && activeScreen === 'voice') {
     content = (
-      <VoiceInputScreen onReturnHome={() => setActiveScreen('home')} />
+      <VoiceInputScreen
+        careRecipientId={careRecipient.id}
+        onReturnHome={() => setActiveScreen('home')}
+      />
     );
   } else if (careRecipient) {
     content = (

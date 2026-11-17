@@ -21,6 +21,7 @@ import { File } from 'expo-file-system';
 import { supabase } from '../services/supabase';
 
 type VoiceInputScreenProps = {
+  careRecipientId?: string;
   onReturnHome: () => void;
 };
 
@@ -39,6 +40,7 @@ function formatDuration(durationMillis: number) {
 }
 
 export default function VoiceInputScreen({
+  careRecipientId,
   onReturnHome,
 }: VoiceInputScreenProps) {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -59,6 +61,9 @@ export default function VoiceInputScreen({
   const [isBusy, setIsBusy] = useState(false);
   const [transcript, setTranscript] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isSavingJournal, setIsSavingJournal] = useState(false);
+  const [isJournalSaved, setIsJournalSaved] = useState(false);
+  const [journalSaveError, setJournalSaveError] = useState<string | null>(null);
 
   playerRef.current = player;
   recorderRef.current = recorder;
@@ -140,6 +145,8 @@ export default function VoiceInputScreen({
       isRecordingRef.current = true;
       setIsRecording(true);
       setTranscript(null);
+      setIsJournalSaved(false);
+      setJournalSaveError(null);
     } catch {
       isRecordingRef.current = false;
       setIsRecording(false);
@@ -217,6 +224,8 @@ export default function VoiceInputScreen({
     setFeedback(null);
     setTranscript(null);
     setIsTranscribing(true);
+    setIsJournalSaved(false);
+    setJournalSaveError(null);
 
     try {
       const audioFile = new File(recordingUri);
@@ -248,6 +257,54 @@ export default function VoiceInputScreen({
     } finally {
       if (isMountedRef.current) {
         setIsTranscribing(false);
+      }
+    }
+  }
+
+  async function handleSaveJournalEntry() {
+    const normalizedTranscript = transcript?.trim();
+
+    if (!normalizedTranscript || isJournalSaved) {
+      return;
+    }
+
+    setJournalSaveError(null);
+    setIsSavingJournal(true);
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error('Authentication required');
+      }
+
+      const { error: saveError } = await supabase
+        .from('journal_entries')
+        .insert({
+          caregiver_id: user.id,
+          care_recipient_id: careRecipientId ?? null,
+          transcript: normalizedTranscript,
+        });
+
+      if (saveError) {
+        throw new Error('Journal save failed');
+      }
+
+      if (isMountedRef.current) {
+        setIsJournalSaved(true);
+      }
+    } catch {
+      if (isMountedRef.current) {
+        setJournalSaveError(
+          'Unable to save this journal entry. Please try again.'
+        );
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsSavingJournal(false);
       }
     }
   }
@@ -332,13 +389,14 @@ export default function VoiceInputScreen({
             </View>
 
             <Pressable
-              disabled={isBusy || isTranscribing}
+              disabled={isBusy || isTranscribing || isSavingJournal}
               onPress={
                 isRecording ? handleStopRecording : handleStartRecording
               }
               style={({ pressed }) => [
                 styles.primaryButton,
-                (pressed || isBusy || isTranscribing) && styles.buttonMuted,
+                (pressed || isBusy || isTranscribing || isSavingJournal) &&
+                  styles.buttonMuted,
                 isRecording && styles.stopButton,
               ]}
             >
@@ -353,11 +411,12 @@ export default function VoiceInputScreen({
 
             {recordingUri && !isRecording ? (
               <Pressable
-                disabled={isBusy || isTranscribing}
+                disabled={isBusy || isTranscribing || isSavingJournal}
                 onPress={handleReplay}
                 style={({ pressed }) => [
                   styles.secondaryButton,
-                  (pressed || isTranscribing) && styles.buttonMuted,
+                  (pressed || isTranscribing || isSavingJournal) &&
+                    styles.buttonMuted,
                 ]}
               >
                 <Text style={styles.secondaryButtonText}>
@@ -370,11 +429,12 @@ export default function VoiceInputScreen({
 
             {recordingUri && !isRecording ? (
               <Pressable
-                disabled={isBusy || isTranscribing}
+                disabled={isBusy || isTranscribing || isSavingJournal}
                 onPress={handleTranscribe}
                 style={({ pressed }) => [
                   styles.secondaryButton,
-                  (pressed || isTranscribing) && styles.buttonMuted,
+                  (pressed || isTranscribing || isSavingJournal) &&
+                    styles.buttonMuted,
                 ]}
               >
                 <Text style={styles.secondaryButtonText}>
@@ -397,6 +457,33 @@ export default function VoiceInputScreen({
           </View>
         ) : null}
 
+        {transcript && !isJournalSaved ? (
+          <Pressable
+            disabled={isSavingJournal}
+            onPress={handleSaveJournalEntry}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              (pressed || isSavingJournal) && styles.buttonMuted,
+            ]}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isSavingJournal ? 'Saving...' : 'Save journal entry'}
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {isJournalSaved ? (
+          <Text accessibilityLiveRegion="polite" style={styles.successMessage}>
+            Journal entry saved.
+          </Text>
+        ) : null}
+
+        {journalSaveError ? (
+          <Text accessibilityLiveRegion="polite" style={styles.errorMessage}>
+            {journalSaveError}
+          </Text>
+        ) : null}
+
         {feedback && permissionState === 'granted' ? (
           <Text accessibilityLiveRegion="polite" style={styles.errorMessage}>
             {feedback}
@@ -404,11 +491,11 @@ export default function VoiceInputScreen({
         ) : null}
 
         <Pressable
-          disabled={isBusy || isTranscribing}
+          disabled={isBusy || isTranscribing || isSavingJournal}
           onPress={handleReturnHome}
           style={[
             styles.homeButton,
-            isTranscribing && styles.buttonMuted,
+            (isTranscribing || isSavingJournal) && styles.buttonMuted,
           ]}
         >
           <Text style={styles.homeButtonText}>Return to caregiver home</Text>
@@ -549,5 +636,12 @@ const styles = StyleSheet.create({
     color: '#b42318',
     fontSize: 14,
     lineHeight: 20,
+  },
+  successMessage: {
+    marginTop: 16,
+    color: '#147d6f',
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
