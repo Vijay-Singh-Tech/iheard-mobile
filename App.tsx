@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import CaregiverTabs from './navigation/CaregiverTabs';
 import AddCareRecipientScreen from './screens/AddCareRecipientScreen';
-import CaregiverHomeScreen from './screens/CaregiverHomeScreen';
 import CaregiverProfileScreen from './screens/CaregiverProfileScreen';
 import SignInScreen from './screens/SignInScreen';
-import VoiceInputScreen from './screens/VoiceInputScreen';
-import WellbeingCheckScreen from './screens/WellbeingCheckScreen';
 import { supabase } from './services/supabase';
 
 export type CareRecipient = {
@@ -20,14 +19,6 @@ export type CareRecipient = {
 
 export default function App() {
   const [session, setSession] = useState<Session | null>();
-  const [hasProfile, setHasProfile] = useState<boolean>();
-  const [careRecipient, setCareRecipient] = useState<
-    CareRecipient | null | undefined
-  >();
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeScreen, setActiveScreen] = useState<
-    'home' | 'voice' | 'wellbeing'
-  >('home');
 
   useEffect(() => {
     let isMounted = true;
@@ -50,28 +41,47 @@ export default function App() {
     };
   }, []);
 
+  return (
+    <SafeAreaProvider>
+      <StatusBar style="dark" />
+      {session === undefined ? (
+        <LoadingScreen />
+      ) : session ? (
+        <CaregiverBootstrap
+          key={session.user.id}
+          userId={session.user.id}
+          email={session.user.email}
+        />
+      ) : (
+        <SignInScreen />
+      )}
+    </SafeAreaProvider>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator color="#147d6f" size="large" />
+    </View>
+  );
+}
+
+function CaregiverBootstrap({ userId, email }: { userId: string; email?: string }) {
+  const [caregiverName, setCaregiverName] = useState<string | null>();
+  const [caregiverTimezone, setCaregiverTimezone] = useState('');
+  const [careRecipient, setCareRecipient] = useState<
+    CareRecipient | null | undefined
+  >();
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
     let isMounted = true;
-
-    if (!session) {
-      setHasProfile(session === null ? false : undefined);
-      setCareRecipient(undefined);
-      setLoadError(null);
-      setActiveScreen('home');
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    setHasProfile(undefined);
-    setCareRecipient(undefined);
-    setLoadError(null);
-    const userId = session.user.id;
 
     async function loadCaregiverData() {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id')
+        .select('display_name, timezone')
         .eq('id', userId)
         .maybeSingle();
 
@@ -88,10 +98,10 @@ export default function App() {
         return;
       }
 
-      const profileExists = Boolean(profile);
-      setHasProfile(profileExists);
+      setCaregiverName(profile?.display_name ?? null);
+      setCaregiverTimezone(profile?.timezone ?? '');
 
-      if (!profileExists) {
+      if (!profile) {
         setCareRecipient(null);
         return;
       }
@@ -127,69 +137,48 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [session]);
+  }, [userId]);
 
-  let content;
-
-  if (
-    session === undefined ||
-    (session &&
-      !loadError &&
-      (hasProfile === undefined || careRecipient === undefined))
-  ) {
-    content = (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator color="#147d6f" size="large" />
-      </View>
-    );
-  } else if (!session) {
-    content = <SignInScreen />;
-  } else if (loadError) {
-    content = (
+  if (loadError) {
+    return (
       <View style={styles.loadingContainer}>
         <Text style={styles.errorText}>{loadError} Please try again.</Text>
       </View>
     );
-  } else if (!hasProfile) {
-    content = (
+  }
+
+  if (caregiverName === undefined || careRecipient === undefined) {
+    return <LoadingScreen />;
+  }
+
+  if (caregiverName === null) {
+    return (
       <CaregiverProfileScreen
-        onProfileSaved={() => {
-          setHasProfile(true);
+        onProfileSaved={(displayName, timezone) => {
+          setCaregiverName(displayName);
+          setCaregiverTimezone(timezone);
           setCareRecipient(null);
         }}
       />
     );
-  } else if (careRecipient && activeScreen === 'wellbeing') {
-    content = (
-      <WellbeingCheckScreen
-        careRecipient={careRecipient}
-        onReturnHome={() => setActiveScreen('home')}
-      />
-    );
-  } else if (careRecipient && activeScreen === 'voice') {
-    content = (
-      <VoiceInputScreen
-        careRecipientId={careRecipient.id}
-        onReturnHome={() => setActiveScreen('home')}
-      />
-    );
-  } else if (careRecipient) {
-    content = (
-      <CaregiverHomeScreen
-        careRecipient={careRecipient}
-        onStartVoiceInput={() => setActiveScreen('voice')}
-        onStartWellbeingCheck={() => setActiveScreen('wellbeing')}
-      />
-    );
-  } else {
-    content = <AddCareRecipientScreen onRecipientAdded={setCareRecipient} />;
+  }
+
+  if (!careRecipient) {
+    return <AddCareRecipientScreen onRecipientAdded={setCareRecipient} />;
   }
 
   return (
-    <>
-      <StatusBar style="dark" />
-      {content}
-    </>
+    <CaregiverTabs
+      caregiverId={userId}
+      caregiverName={caregiverName}
+      caregiverTimezone={caregiverTimezone}
+      email={email}
+      onProfileSaved={(displayName, timezone) => {
+        setCaregiverName(displayName);
+        setCaregiverTimezone(timezone);
+      }}
+      careRecipient={careRecipient}
+    />
   );
 }
 

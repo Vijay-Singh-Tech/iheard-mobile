@@ -25,11 +25,13 @@ import type {
 type WellbeingCheckScreenProps = {
   careRecipient: CareRecipient;
   onReturnHome: () => void;
+  returnLabel?: string;
 };
 
 export default function WellbeingCheckScreen({
   careRecipient,
   onReturnHome,
+  returnLabel = 'Return to Today',
 }: WellbeingCheckScreenProps) {
   const [definition, setDefinition] =
     useState<WellbeingAssessmentDefinition>();
@@ -93,7 +95,7 @@ export default function WellbeingCheckScreen({
               onPress={onReturnHome}
               style={[styles.secondaryButton, styles.standaloneButton]}
             >
-              <Text style={styles.secondaryButtonText}>Return home</Text>
+              <Text style={styles.secondaryButtonText}>{returnLabel}</Text>
             </Pressable>
           </>
         ) : (
@@ -131,7 +133,7 @@ export default function WellbeingCheckScreen({
             onPress={onReturnHome}
             style={[styles.primaryButton, styles.resultButton]}
           >
-            <Text style={styles.primaryButtonText}>Return to caregiver home</Text>
+            <Text style={styles.primaryButtonText}>{returnLabel}</Text>
           </Pressable>
         </View>
       </View>
@@ -280,7 +282,7 @@ export default function WellbeingCheckScreen({
             style={styles.secondaryButton}
           >
             <Text style={styles.secondaryButtonText}>
-              {questionIndex === 0 ? 'Return home' : 'Back'}
+              {questionIndex === 0 ? returnLabel : 'Back'}
             </Text>
           </Pressable>
 

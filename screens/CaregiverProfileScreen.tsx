@@ -27,14 +27,18 @@ function getDeviceTimezone() {
 }
 
 type CaregiverProfileScreenProps = {
-  onProfileSaved?: () => void;
+  initialProfile?: { displayName: string; timezone: string };
+  onCancel?: () => void;
+  onProfileSaved?: (displayName: string, timezone: string) => void;
 };
 
 export default function CaregiverProfileScreen({
+  initialProfile,
+  onCancel,
   onProfileSaved,
 }: CaregiverProfileScreenProps) {
-  const [displayName, setDisplayName] = useState('');
-  const [timezone, setTimezone] = useState(getDeviceTimezone);
+  const [displayName, setDisplayName] = useState(initialProfile?.displayName ?? '');
+  const [timezone, setTimezone] = useState(() => initialProfile?.timezone || getDeviceTimezone());
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -86,7 +90,7 @@ export default function CaregiverProfileScreen({
       setDisplayName(normalizedDisplayName);
       setTimezone(normalizedTimezone);
       setFeedback({ type: 'success', message: 'Profile saved successfully.' });
-      onProfileSaved?.();
+      onProfileSaved?.(normalizedDisplayName, normalizedTimezone);
     } catch {
       setFeedback({
         type: 'error',
@@ -108,7 +112,7 @@ export default function CaregiverProfileScreen({
       >
         <View style={styles.card}>
           <Text style={styles.eyebrow}>iHeard</Text>
-          <Text style={styles.title}>Your caregiver profile</Text>
+          <Text style={styles.title}>{initialProfile ? 'My Profile' : 'Your caregiver profile'}</Text>
           <Text style={styles.subtitle}>
             Tell us how to address you and confirm your local timezone.
           </Text>
@@ -167,6 +171,16 @@ export default function CaregiverProfileScreen({
                 <Text style={styles.buttonText}>Save profile</Text>
               )}
             </Pressable>
+            {onCancel && (
+              <Pressable
+                accessibilityRole="button"
+                disabled={isLoading}
+                onPress={onCancel}
+                style={styles.cancel}
+              >
+                <Text style={styles.cancelLabel}>Back to Profile</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -256,6 +270,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#147d6f',
     paddingHorizontal: 18,
   },
+  cancel: { minHeight: 44, justifyContent: 'center', alignItems: 'center', marginTop: 8 },
+  cancelLabel: { color: '#512e96', fontSize: 15, fontWeight: '700' },
   buttonMuted: {
     opacity: 0.7,
   },
