@@ -4,6 +4,8 @@ import type { Session } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AppTextSizeContext } from './components/AppText';
+import type { TextSize } from './components/AppText';
 import CaregiverTabs from './navigation/CaregiverTabs';
 import AddCareRecipientScreen from './screens/AddCareRecipientScreen';
 import CaregiverProfileScreen from './screens/CaregiverProfileScreen';
@@ -69,10 +71,12 @@ function LoadingScreen() {
 
 function CaregiverBootstrap({ userId, email }: { userId: string; email?: string }) {
   const [caregiverName, setCaregiverName] = useState<string | null>();
+  const [size, setSize] = useState<TextSize>('standard');
   const [caregiverTimezone, setCaregiverTimezone] = useState('');
   const [careRecipient, setCareRecipient] = useState<
     CareRecipient | null | undefined
   >();
+  const [isAddingFirstRecipient, setIsAddingFirstRecipient] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -81,7 +85,7 @@ function CaregiverBootstrap({ userId, email }: { userId: string; email?: string 
     async function loadCaregiverData() {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('display_name, timezone')
+        .select('display_name, timezone, text_size')
         .eq('id', userId)
         .maybeSingle();
 
@@ -98,6 +102,7 @@ function CaregiverBootstrap({ userId, email }: { userId: string; email?: string 
         return;
       }
 
+      setSize(profile?.text_size === 'large' ? 'large' : 'standard');
       setCaregiverName(profile?.display_name ?? null);
       setCaregiverTimezone(profile?.timezone ?? '');
 
@@ -111,6 +116,7 @@ function CaregiverBootstrap({ userId, email }: { userId: string; email?: string 
         .select('id, preferred_name, relationship, primary_condition')
         .eq('caregiver_id', userId)
         .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
         .limit(1)
         .maybeSingle();
 
@@ -158,27 +164,39 @@ function CaregiverBootstrap({ userId, email }: { userId: string; email?: string 
           setCaregiverName(displayName);
           setCaregiverTimezone(timezone);
           setCareRecipient(null);
+          setIsAddingFirstRecipient(true);
         }}
       />
     );
   }
 
-  if (!careRecipient) {
-    return <AddCareRecipientScreen onRecipientAdded={setCareRecipient} />;
+  if (!careRecipient && isAddingFirstRecipient) {
+    return <AddCareRecipientScreen onRecipientAdded={(recipient) => {
+      setCareRecipient(recipient);
+      setIsAddingFirstRecipient(false);
+    }} />;
   }
 
   return (
-    <CaregiverTabs
-      caregiverId={userId}
-      caregiverName={caregiverName}
-      caregiverTimezone={caregiverTimezone}
-      email={email}
-      onProfileSaved={(displayName, timezone) => {
-        setCaregiverName(displayName);
-        setCaregiverTimezone(timezone);
-      }}
-      careRecipient={careRecipient}
-    />
+    <AppTextSizeContext.Provider value={{ size, setSize }}>
+      <CaregiverTabs
+        caregiverId={userId}
+        caregiverName={caregiverName}
+        caregiverTimezone={caregiverTimezone}
+        email={email}
+        onProfileSaved={(displayName, timezone) => {
+          setCaregiverName(displayName);
+          setCaregiverTimezone(timezone);
+        }}
+        careRecipient={careRecipient}
+        onRecipientSaved={(saved) => {
+          setCareRecipient((current) => !current || current.id === saved.id ? saved : current);
+        }}
+        onRecipientDeleted={(deletedId, nextRecipient) => {
+          setCareRecipient((current) => current?.id === deletedId ? nextRecipient : current);
+        }}
+      />
+    </AppTextSizeContext.Provider>
   );
 }
 

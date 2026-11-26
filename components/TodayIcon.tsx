@@ -1,6 +1,10 @@
 import { Image } from 'react-native';
 
 const icons = {
+  lotus: require('../assets/recharge/lotus.png'),
+  wind: require('../assets/recharge/wind.png'),
+  music: require('../assets/recharge/musicIcon.png'),
+  cup: require('../assets/recharge/cup.png'),
   settings: require('../assets/today/settings.png'),
   book: require('../assets/today/book.png'),
   assessment: require('../assets/today/assessment.png'),

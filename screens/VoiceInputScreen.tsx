@@ -4,9 +4,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+import { Text } from '../components/AppText';
 import {
   AudioModule,
   RecordingPresets,
@@ -434,11 +434,11 @@ export default function VoiceInputScreen({
           style={[styles.back, navigationLocked && styles.muted]}
         >
           <Text style={styles.backArrow}>‹</Text>
-          <Text style={styles.backLabel}>Today</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.backLabel}>Today</Text>
         </Pressable>
         <View accessible accessibilityLabel="iHEARD" style={styles.brand}>
           <TodayIcon name="brand" size={29} />
-          <Text style={styles.wordmark}>iHEARD</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.wordmark}>iHEARD</Text>
         </View>
       </View>
 

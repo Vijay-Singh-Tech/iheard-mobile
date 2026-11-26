@@ -6,10 +6,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
+import { Text, TextInput } from '../components/AppText';
 
 import { supabase } from '../services/supabase';
 import type { CareRecipient } from '../App';
@@ -303,7 +302,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   input: {
-    height: 50,
+    minHeight: 50,
     marginBottom: 18,
     borderWidth: 1,
     borderColor: '#cbd8d5',

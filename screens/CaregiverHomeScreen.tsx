@@ -4,9 +4,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+import { Text } from '../components/AppText';
 
 import type { CareRecipient } from '../App';
 import TodayIcon from '../components/TodayIcon';
@@ -81,7 +81,7 @@ export default function CaregiverHomeScreen({
       <View style={styles.brandBar}>
         <View accessible accessibilityLabel="iHEARD" style={styles.brand}>
           <TodayIcon name="brand" size={29} />
-          <Text style={styles.wordmark}>iHEARD</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.wordmark}>iHEARD</Text>
         </View>
         <View
           accessible
